@@ -109,6 +109,9 @@ Because Claude Desktop contains proprietary binaries from Anthropic, ensure unfr
 }
 ```
 
+> **Note on Desktop Integration & MIME Callbacks:**  
+> When installed via `environment.systemPackages`, NixOS automatically links the `.desktop` file and registers the `x-scheme-handler/claude` MIME association system-wide.
+
 ### 3. Home Manager (`home.nix`)
 
 ```nix
