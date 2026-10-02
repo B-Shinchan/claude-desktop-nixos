@@ -36,5 +36,12 @@
           meta.description = "Claude Desktop for Linux (Pure derivation)";
         };
       };
+
+      overlays.default = final: prev: {
+        claude-desktop = final.callPackage ./package.nix { };
+        claude-desktop-fhs = final.callPackage ./fhs.nix {
+          claude-desktop = final.claude-desktop;
+        };
+      };
     };
 }

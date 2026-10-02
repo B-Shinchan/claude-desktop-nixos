@@ -97,7 +97,13 @@ Because Claude Desktop contains proprietary binaries from Anthropic, ensure unfr
 
   environment.systemPackages = [
     inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.default
+    # Or if using overlays:
+    # pkgs.claude-desktop-fhs  (default, with Cowork VM)
+    # pkgs.claude-desktop      (pure derivation)
   ];
+
+  # Optional: Overlay method
+  # nixpkgs.overlays = [ inputs.claude-desktop.overlays.default ];
 
   # Required for Cowork VM features:
   boot.kernelModules = [ "vhost_vsock" ];
