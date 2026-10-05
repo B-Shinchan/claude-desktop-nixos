@@ -1,0 +1,95 @@
+name: Check & Update Upstream
+
+on:
+  schedule:
+    - cron: '0 4 * * 1' # Every Monday at 04:00 UTC
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            allow-unfree = true
+
+      - name: Check upstream APT repository
+        id: check
+        run: |
+          set -euo pipefail
+          python3 - <<'EOF'
+          import urllib.request, re, subprocess, sys
+
+          url = "https://downloads.claude.ai/claude-desktop/apt/stable/dists/stable/main/binary-amd64/Packages"
+          req = urllib.request.Request(url, headers={"User-Agent": "curl/7.88.1"})
+          data = urllib.request.urlopen(req).read().decode("utf-8")
+          blocks = [b for b in data.strip().split("\n\n") if "Package: claude-desktop" in b]
+          if not blocks:
+              print("No claude-desktop package blocks found!")
+              sys.exit(1)
+
+          latest_pkg = blocks[-1]
+          ver_m = re.search(r"^Version:\s*(\S+)", latest_pkg, re.M)
+          sha_m = re.search(r"^SHA256:\s*(\S+)", latest_pkg, re.M)
+          if not ver_m or not sha_m:
+              print("Could not parse version or sha256!")
+              sys.exit(1)
+
+          latest_ver = ver_m.group(1)
+          latest_sha = sha_m.group(1)
+
+          # Read current version from package.nix
+          with open("package.nix") as f:
+              content = f.read()
+          cur_ver_m = re.search(r'version\s*=\s*"([^"]+)"', content)
+          cur_ver = cur_ver_m.group(1) if cur_ver_m else ""
+
+          print(f"Current version: {cur_ver}")
+          print(f"Latest upstream: {latest_ver}")
+
+          if cur_ver == latest_ver:
+              print("Already up to date.")
+              with open(sys.argv[1], "a") as f:
+                  f.write("has_update=false\n")
+          else:
+              sri = subprocess.check_output(["nix", "hash", "convert", "--to", "sri", f"sha256:{latest_sha}"]).decode().strip()
+              with open(sys.argv[1], "a") as f:
+                  f.write("has_update=true\n")
+                  f.write(f"version={latest_ver}\n")
+                  f.write(f"sri_hash={sri}\n")
+          EOF "$GITHUB_OUTPUT"
+
+      - name: Update package.nix and test build
+        if: steps.check.outputs.has_update == 'true'
+        run: |
+          NEW_VER="${{ steps.check.outputs.version }}"
+          NEW_HASH="${{ steps.check.outputs.sri_hash }}"
+          echo "Updating to version $NEW_VER with hash $NEW_HASH"
+
+          sed -i -E "s/version = \"[^\"]+\";/version = \"$NEW_VER\";/" package.nix
+          sed -i -E "s|hash = \"sha256-[^\"]+\";|hash = \"$NEW_HASH\";|" package.nix
+
+          echo "Building updated package..."
+          nix build .#default
+
+          echo "Running sanity check..."
+          ./result/bin/claude-desktop --version
+
+      - name: Commit and push update
+        if: steps.check.outputs.has_update == 'true'
+        run: |
+          NEW_VER="${{ steps.check.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.nix
+          git commit -m "chore(deps): update upstream to v$NEW_VER"
+          git push origin main
