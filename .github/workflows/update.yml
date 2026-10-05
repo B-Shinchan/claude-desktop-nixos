@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      NIXPKGS_ALLOW_UNFREE: 1
 
     steps:
       - name: Checkout repository
@@ -20,7 +22,6 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-            allow-unfree = true
 
       - name: Check upstream APT repository
         id: check
@@ -79,7 +80,7 @@ jobs:
           sed -i -E "s|hash = \"sha256-[^\"]+\";|hash = \"$NEW_HASH\";|" package.nix
 
           echo "Building updated package..."
-          nix build .#default
+          nix build .#default --impure
 
           echo "Running sanity check..."
           ./result/bin/claude-desktop --version

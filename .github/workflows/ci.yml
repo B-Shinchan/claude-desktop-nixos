@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NIXPKGS_ALLOW_UNFREE: 1
 
     steps:
       - name: Checkout repository
@@ -19,10 +21,9 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-            allow-unfree = true
 
       - name: Build Claude Desktop (FHS)
-        run: nix build .#default
+        run: nix build .#default --impure
 
       - name: Verify Version Output
         run: ./result/bin/claude-desktop --version
