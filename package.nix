@@ -121,8 +121,6 @@ stdenv.mkDerivation (finalAttrs: {
     substituteInPlace $out/share/applications/com.anthropic.Claude.desktop \
       --replace-fail "Exec=claude-desktop" "Exec=$out/bin/claude-desktop"
 
-    ln -s com.anthropic.Claude.desktop $out/share/applications/claude-desktop.desktop
-
     # Create binary symlink
     ln -s $out/lib/claude-desktop/claude-desktop $out/bin/claude-desktop
 
