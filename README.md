@@ -1,179 +1,146 @@
-# Claude Desktop on NixOS
+# Claude Desktop for NixOS
 
-[![Nix Flake](https://img.shields.io/badge/Nix_Flake-blue?logo=nixos&logoColor=white)](https://nixos.org)
-[![Platform](https://img.shields.io/badge/Platform-x86__64--linux-lightgrey?logo=linux&logoColor=white)](https://nixos.org)
-[![Wayland Ready](https://img.shields.io/badge/Wayland-Ready-green?logo=wayland&logoColor=white)](https://wayland.freedesktop.org/)
-[![Packaging License: MIT](https://img.shields.io/badge/Packaging_License-MIT-yellow.svg)](./LICENSE)
+[![Build](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml/badge.svg)](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml)
+[![Upstream updates](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml/badge.svg)](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml)
 
-Repackaging of Anthropic's official Claude Desktop Linux (`.deb`) application for NixOS, featuring out-of-the-box native Wayland rendering, GNOME Keyring Secret Service persistence across Wayland compositors (Niri, Hyprland, Sway), and complete Cowork virtualization support via `buildFHSEnv`.
+Community packaging of **Anthropic's official Linux application** for NixOS. The application comes from the vendor's Debian repository; this project adapts its runtime and desktop integration for NixOS. It is not an official Anthropic or NixOS project.
 
----
+## Requirements and scope
 
-## Architecture: Problems & Solutions
+- `x86_64-linux` only. This repository does not currently package ARM releases.
+- Nix with the `nix-command` and `flakes` features enabled.
+- A graphical Linux session, working graphics drivers, and a session D-Bus.
+- A running Secret Service provider, such as GNOME Keyring or KeePassXC with Secret Service enabled. The launcher selects `gnome-libsecret`; your login session must unlock the keyring.
+- A working XDG Desktop Portal and the backend recommended by your desktop or compositor for file dialogs and applicable sharing features.
+- A vendor account and any subscription required for the application features you use.
 
-The official Claude Desktop Linux package is distributed as an `x86_64` Debian archive tailored for standard FHS distributions (Ubuntu/Debian). On NixOS, several structural barriers prevent the application from running:
+The package installs standard desktop files and vendor icons for Linux application menus. GNOME, Niri, Hyprland, and other desktops have different portal, keyring, shortcut, and window-grouping behavior. They are not all exercised by CI. Current Electron's automatic display selection is used: native Wayland in an appropriately configured Wayland session, X11 otherwise. Pass `--ozone-platform=x11` when troubleshooting.
 
-1. **Missing Dynamic Linkage & Bundled Helpers**:
-   - The Electron wrapper and its bundled helpers (`cowork-linux-helper`, `virtiofsd`) link against dynamic libraries residing in standard paths like `/lib64/ld-linux-x86-64.so.2` and expect `libseccomp` and `libcap-ng`.
-   - **Solution**: Patched with `autoPatchelfHook`, resolving ELF interpreters and runtime dependencies while appending Nix store runpaths to the binary wrapper.
+See the [vendor's Linux documentation](https://support.claude.com/en/articles/10065433-install-claude-desktop) for upstream requirements and feature restrictions. This package cannot enable features unavailable in the upstream application or your plan.
 
-2. **Hardcoded Virtualization Firmware Paths**:
-   - Claude's Cowork VM feature inspects the filesystem directly for hardcoded UEFI firmware at `/usr/share/OVMF/OVMF_CODE_4M.fd` or `/usr/share/OVMF/OVMF_CODE.fd`, along with `/usr/libexec/virtiofsd`. Without an FHS rootfs layout, Claude reports:
-     ```
-     Cowork requires QEMU. Install it with 'sudo apt install qemu-system-x86 ovmf virtiofsd', then restart Claude.
-     (unsupportedCode: "virtualization_tools_missing")
-     ```
-   - **Solution**: Implemented an FHS runtime wrapper via `buildFHSEnv` that stages NixOS's `OVMFFull` firmware at `/usr/share/OVMF/`, bundles `virtiofsd` at `/usr/libexec/virtiofsd`, provisions `qemu-system-x86_64`, and binds `/dev/kvm` and `/dev/vhost-vsock` into the bubblewrap sandbox.
+## Try it
 
-3. **Keyring Failures on Non-GNOME Wayland Compositors**:
-   - In environments without GNOME Shell (such as Niri, Hyprland, Sway), Electron fails to determine the secret storage backend, causing authentication session loss on restart.
-   - **Solution**: Pre-configured flags `--password-store=gnome-libsecret` ensure sessions persist reliably using standard FreeDesktop Secret Service implementations (`gnome-keyring` or KeePassXC).
-
-4. **OAuth Browser Deep-Linking**:
-   - Signing in redirects through the browser to a `claude://` scheme. Without standard XDG MIME registrations and `xdg-utils` in the runtime `PATH`, browser handshakes fail.
-   - **Solution**: Packages desktop integration files registering `x-scheme-handler/claude` and injects `xdg-utils` into runtime `PATH`.
-
----
-
-## Feature Matrix
-
-| Feature | Status | Implementation Details |
-| :--- | :---: | :--- |
-| **Core Chat & Projects** | **Supported** | Full Electron runtime parity with official `.deb` release. |
-| **Artifacts & Previews** | **Supported** | Complete rendering support with hardware acceleration. |
-| **Native Wayland & DMA-BUF** | **Supported** | Pre-configured with `--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations`. |
-| **OAuth `claude://` Callbacks** | **Supported** | Desktop protocol handler mapped to `x-scheme-handler/claude` via `xdg-utils`. |
-| **Secret Storage Persistence** | **Supported** | Backed by `libsecret` and FreeDesktop Secret Service (`--password-store=gnome-libsecret`). |
-| **Claude Cowork VM** | **Supported** | FHS wrapper supplies `qemu_kvm`, `virtiofsd`, and UEFI `OVMF` binaries. |
-| **Voice Dictation** | **Supported** | PulseAudio/PipeWire ALSA backend wired via runtime library paths. |
-
----
-
-## Quickstart / Ad-hoc Usage
-
-Execute directly without modifying your system configuration:
-
-### Default (Cowork VM-enabled FHS)
-```bash
+```sh
 nix run github:B-Shinchan/claude-desktop-nixos
 ```
 
-### Pure Derivation (Lightweight, No QEMU / OVMF overhead)
-```bash
+For a temporary shell:
+
+```sh
+nix shell github:B-Shinchan/claude-desktop-nixos -c claude-desktop
+```
+
+These commands provide the executable for that invocation. Install declaratively for persistent application-menu and URI-handler integration.
+
+The default package wraps the application in `buildFHSEnv` and supplies QEMU, OVMF firmware, virtiofsd, Bubblewrap, socat, and OpenSSH at the paths expected by Cowork. A lighter package without this FHS wrapper is also available:
+
+```sh
 nix run github:B-Shinchan/claude-desktop-nixos#pure
 ```
 
----
+Cowork also needs host virtualization support and access to KVM/VSOCK devices. Providing the runtime tools does not verify Cowork's account-dependent VM workflow.
 
-## Declarative NixOS Integration
+## Install with a system flake
 
-### 1. Flake Inputs
-Add `claude-desktop-nixos` to your system `flake.nix`:
+Add the repository to your existing flake's `inputs` and pass `inputs` to your NixOS modules using `specialArgs`. The following shows the relevant structure; keep your existing host modules and settings:
 
 ```nix
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     claude-desktop.url = "github:B-Shinchan/claude-desktop-nixos";
-    # Ensure inputs.claude-desktop.inputs.nixpkgs follows your system nixpkgs if desired:
-    # claude-desktop.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, claude-desktop, ... }: {
-    # System configuration...
+  outputs = inputs@{ nixpkgs, ... }: {
+    nixosConfigurations.YOUR_HOST = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit inputs; };
+      modules = [ ./configuration.nix ];
+    };
   };
 }
 ```
 
-### 2. NixOS Configuration (`configuration.nix`)
-
-Because Claude Desktop contains proprietary binaries from Anthropic, ensure unfree packages are allowed:
+In a NixOS module:
 
 ```nix
-{ pkgs, inputs, ... }:
-
+{ inputs, pkgs, ... }:
 {
-  nixpkgs.config.allowUnfree = true;
-
   environment.systemPackages = [
     inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.default
-    # Or if using overlays:
-    # pkgs.claude-desktop-fhs  (default, with Cowork VM)
-    # pkgs.claude-desktop      (pure derivation)
   ];
-
-  # Optional: Overlay method
-  # nixpkgs.overlays = [ inputs.claude-desktop.overlays.default ];
-
-  # Required for Cowork VM features:
-  boot.kernelModules = [ "vhost_vsock" ];
-  users.users.<username>.extraGroups = [ "kvm" ];
-
-  # Required for secret persistence on standalone Wayland compositors:
-  services.gnome.gnome-keyring.enable = true;
-  security.pam.services.login.enableGnomeKeyring = true;
 }
 ```
 
-> **Note on Desktop Integration & MIME Callbacks:**  
-> When installed via `environment.systemPackages`, NixOS automatically links the `.desktop` file and registers the `x-scheme-handler/claude` MIME association system-wide.
+The flake's package set explicitly permits the proprietary application. If you use `overlays.default` instead, permit the unfree package in your own Nixpkgs configuration. The overlay provides `pkgs.claude-desktop` and `pkgs.claude-desktop-fhs`.
 
-### 3. Home Manager (`home.nix`)
+For Home Manager, pass `inputs` through `extraSpecialArgs` (or `home-manager.extraSpecialArgs` in a NixOS integration), then put the same package expression in `home.packages`.
+
+Both standalone installation methods use this repository's `flake.lock`. You may set `claude-desktop.inputs.nixpkgs.follows = "nixpkgs"` to share your system's package set, but that dependency combination is not the exact one checked by this repository's CI.
+
+For Cowork, a typical NixOS configuration also includes:
 
 ```nix
-{ pkgs, inputs, ... }:
-
 {
-  home.packages = [
-    inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.default
-  ];
+  boot.kernelModules = [ "vhost_vsock" ];
+  users.users.YOUR_USER.extraGroups = [ "kvm" ];
 }
 ```
 
----
+Reboot or start a new login session after changing kernel modules or group membership. Hardware virtualization must be enabled in firmware. Check `/dev/kvm`, `/dev/vhost-vsock`, and your user's access if VM startup fails.
 
-## Troubleshooting & Gotchas
+## Desktop integration and troubleshooting
 
-### 1. OAuth Callback Not Handled by Browser
-If clicking "Open in Claude" in your browser fails to focus the application:
-1. Verify the MIME registration:
-   ```bash
-   xdg-mime query default x-scheme-handler/claude
-   ```
-   *Expected output*: `com.anthropic.Claude.desktop`
-2. If unset, manually register the scheme handler:
-   ```bash
-   xdg-mime default com.anthropic.Claude.desktop x-scheme-handler/claude
-   ```
+The application-menu name is **Claude**. The desktop file is `com.anthropic.Claude.desktop`, the icon theme name is `claude-desktop`, and the executable is `claude-desktop`. Desktop action commands also point to the packaged launcher. Installing the package advertises its supported URI schemes; it does not guarantee your desktop selects it as the default handler.
 
-### 2. Cowork VM Initialization Issues
-If Cowork features indicate missing virtualization:
-- Verify `/dev/kvm` exists and your user belongs to the `kvm` group:
-  ```bash
-  ls -l /dev/kvm
-  ```
-- Verify the VSOCK kernel module is loaded:
-  ```bash
-  lsmod | grep vhost_vsock
-  ```
-  If missing on a live session, run:
-  ```bash
-  sudo modprobe vhost_vsock
-  ```
+Check browser sign-in callbacks:
 
-### 3. Keyring Prompt / Session Lost on Restart
-If you are logged out every time Claude Desktop is closed:
-- Ensure a Secret Service daemon (`gnome-keyring` or KeePassXC with Freedesktop Secret Service enabled) is running in your session.
-- Under compositors like Niri, Hyprland, or Sway, launch the keyring daemon in your compositor startup configuration:
-  ```bash
-  dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
-  gnome-keyring-daemon --start --components=secrets
-  ```
+```sh
+xdg-mime query default x-scheme-handler/claude
+# If no appropriate handler is selected:
+xdg-mime default com.anthropic.Claude.desktop x-scheme-handler/claude
+```
 
----
+If the application is missing from your menu, start a new desktop session after declarative installation. Duplicate entries may come from older manually installed desktop files in `~/.local/share/applications`; inspect them before removing anything. The package does not register itself as a handler for ordinary HTTP or HTTPS links.
 
-## Legal & Disclaimers
+For login persistence, verify that a Secret Service provider is running and unlocked. On a standalone compositor, configure keyring startup and PAM unlocking for your actual login method. GNOME normally supplies this session integration. For file-dialog or sharing problems, check your compositor's portal configuration and D-Bus environment. Packaging the libraries alone cannot provide a correctly configured desktop session.
 
-- **Packaging Code**: Licensed under the [MIT License](./LICENSE).
-- **Trademarks & Binaries**: **Claude**, **Claude Desktop**, and the Anthropic logo are trademarks of **Anthropic PBC**.
-- This repository is an independent community packaging effort and is neither affiliated with nor endorsed by Anthropic.
+For display problems, try:
+
+```sh
+claude-desktop --ozone-platform=x11
+```
+
+X11 fallback requires X11/XWayland support. Native Wayland requires a working Wayland session. CI checks a headless X11 launch and a real Wayland surface/application ID in private Weston; it does not certify live Wayland window grouping, rendering, authentication, audio, screen sharing, or subscription-dependent features.
+
+## Automatic updates
+
+Every **Monday at 09:47 IST**, GitHub Actions checks Anthropic's stable amd64 APT feed. GitHub may start scheduled jobs late. Changes to the updater also start a check, and maintainers can use **Actions → Check & Update Upstream → Run workflow**.
+
+The update process:
+
+1. Selects the highest Debian version for the exact package and architecture, validates its download layout, and records its SHA256. It rejects downgrades and conflicting metadata, and detects a changed archive hash for the same version.
+2. Evaluates and builds the candidate against the locked Nixpkgs revision. It runs updater tests, desktop-file/icon checks, formatting/workflow checks, an isolated headless version check, X11 window-class matching, and a headless Wayland window/identity check.
+3. On the first Monday of each month, also refreshes the official NixOS/Nixpkgs lock pin and validates that candidate with the same checks.
+4. After every check succeeds, a separate fresh job reconstructs only the validated version/hash and restricted Nixpkgs lock changes and commits them to `main` as `github-actions[bot]`. Only this job has repository write permission.
+
+A failed candidate is not published. The failed Actions step and job summary explain the failure. Unchanged releases produce no package commit. Action dependencies are pinned to exact commits; Dependabot proposes weekly updates to those pins for security review.
+
+This automates routine application releases, not every future packaging change. Vendor layout, dependency, patch, API, or licensing changes can require maintenance. Nixpkgs inputs are pinned between the monthly validated refreshes. The publisher rejects a lock candidate that changes another input, changes the NixOS repository, moves the pin timestamp backwards, or changes the input graph. GitHub can disable schedules after 60 days without repository activity, and service/account limits can interrupt jobs.
+
+Users receive repository updates when they refresh their own flake lock and rebuild or update their profile. For example, from the system flake directory:
+
+```sh
+nix flake update claude-desktop
+sudo nixos-rebuild switch --flake .#YOUR_HOST
+```
+
+## Development and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, contributions, and the remaining work before a potential Nixpkgs submission. See [SECURITY.md](SECURITY.md) for trust boundaries, maintenance limits, and branch-protection guidance.
+
+The automated checks exercise the packaging and selected runtime behavior. They are not a complete graphical test matrix, a vendor-binary security audit, or proof of a reproducible upstream build.
+
+## License and attribution
+
+The packaging code is [MIT-licensed](LICENSE). The application, bundled components, names, and logos remain subject to their respective vendor licenses and trademark rights. Packaging does not grant permission to redistribute proprietary binaries. This project is not affiliated with or endorsed by Anthropic.

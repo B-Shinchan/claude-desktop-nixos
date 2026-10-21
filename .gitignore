@@ -4,3 +4,6 @@ result-*
 .cache/
 *.log
 *.sock
+
+__pycache__/
+.ruff_cache/

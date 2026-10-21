@@ -17,6 +17,9 @@ buildFHSEnv {
     claude-desktop
     qemu_kvm
     virtiofsd
+    pkgs.bubblewrap
+    pkgs.socat
+    pkgs.openssh
   ];
 
   # extraBuildCommands runs inside rootfs generation, so /usr/share/OVMF and /usr/libexec/virtiofsd
@@ -34,7 +37,7 @@ buildFHSEnv {
   extraInstallCommands = ''
     mkdir -p $out/share/applications $out/share/icons
     if [ -d "${claude-desktop}/share/icons" ]; then
-      cp -r ${claude-desktop}/share/icons/* $out/share/icons/ 2>/dev/null || true
+      cp -r ${claude-desktop}/share/icons/. $out/share/icons/
     fi
     if [ -f "${claude-desktop}/share/applications/com.anthropic.Claude.desktop" ]; then
       install -Dm644 ${claude-desktop}/share/applications/com.anthropic.Claude.desktop $out/share/applications/com.anthropic.Claude.desktop
@@ -48,7 +51,7 @@ buildFHSEnv {
     "--dev-bind-try /dev/vhost-vsock /dev/vhost-vsock"
   ];
 
-  runScript = "claude-desktop --ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --password-store=gnome-libsecret";
+  runScript = "claude-desktop";
 
   meta = claude-desktop.meta // {
     description = "Claude Desktop for Linux with Cowork VM support (FHS)";

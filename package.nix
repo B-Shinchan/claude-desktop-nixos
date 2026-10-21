@@ -3,6 +3,7 @@
   stdenv,
   fetchurl,
   dpkg,
+  desktop-file-utils,
   autoPatchelfHook,
   wrapGAppsHook3,
   makeWrapper,
@@ -24,10 +25,11 @@
   libpulseaudio,
   libsecret,
   libxkbcommon,
-  mesa,
+  libgbm,
   nspr,
   nss,
   pango,
+  pipewire,
   libcap_ng,
   libseccomp,
   systemd,
@@ -43,15 +45,16 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "claude-desktop";
-  version = "2.9939.4";
+  version = "3.1623.0";
 
   src = fetchurl {
     url = "https://downloads.claude.ai/claude-desktop/apt/stable/pool/main/c/claude-desktop/claude-desktop_${finalAttrs.version}_amd64.deb";
-    hash = "sha256-PP3bI78pEeBeJ7TtOFa455XflGQ7LDW1nesxfPmVvKA=";
+    hash = "sha256-054dmlcPHlF/FYR59aHZA7mnTR7z8nk2IALcrTdeM88=";
   };
 
   nativeBuildInputs = [
     dpkg
+    desktop-file-utils
     autoPatchelfHook
     wrapGAppsHook3
     makeWrapper
@@ -74,10 +77,11 @@ stdenv.mkDerivation (finalAttrs: {
     libpulseaudio
     libsecret
     libxkbcommon
-    mesa
+    libgbm
     nspr
     nss
     pango
+    pipewire
     libcap_ng
     libseccomp
     systemd
@@ -97,10 +101,7 @@ stdenv.mkDerivation (finalAttrs: {
     libnotify
     libpulseaudio
     libglvnd
-  ];
-
-  appendRunpaths = [
-    "$out/lib/claude-desktop"
+    pipewire
   ];
 
   dontWrapGApps = true;
@@ -111,7 +112,7 @@ stdenv.mkDerivation (finalAttrs: {
     mkdir -p $out/lib/claude-desktop $out/bin $out/share/applications
 
     # Copy application files
-    cp -r usr/lib/claude-desktop/* $out/lib/claude-desktop/
+    cp -r usr/lib/claude-desktop/. $out/lib/claude-desktop/
 
     # Copy icon assets
     cp -r usr/share/icons $out/share/
@@ -120,6 +121,12 @@ stdenv.mkDerivation (finalAttrs: {
     install -Dm644 usr/share/applications/com.anthropic.Claude.desktop $out/share/applications/com.anthropic.Claude.desktop
     substituteInPlace $out/share/applications/com.anthropic.Claude.desktop \
       --replace-fail "Exec=claude-desktop" "Exec=$out/bin/claude-desktop"
+
+    # Use one main category so menus do not duplicate the application.
+    desktop-file-edit --set-key=Categories --set-value="Utility;" $out/share/applications/com.anthropic.Claude.desktop
+    # X11 reports Claude-desktop; Wayland separately uses com.anthropic.Claude.
+    sed -i '/^# Matches the Wayland app_id/d; /^# package.json desktopName/d' $out/share/applications/com.anthropic.Claude.desktop
+    desktop-file-edit --set-key=StartupWMClass --set-value="Claude-desktop" $out/share/applications/com.anthropic.Claude.desktop
 
     # Create binary symlink
     ln -s $out/lib/claude-desktop/claude-desktop $out/bin/claude-desktop
@@ -130,7 +137,7 @@ stdenv.mkDerivation (finalAttrs: {
   preFixup = ''
     gappsWrapperArgs+=(
       --prefix PATH : ${lib.makeBinPath [ xdg-utils ]}
-      --add-flags "\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations} --password-store=gnome-libsecret"
+      --add-flags "--ozone-platform=auto --password-store=gnome-libsecret"
     )
   '';
 
@@ -144,6 +151,7 @@ stdenv.mkDerivation (finalAttrs: {
     description = "Claude Desktop for Linux";
     homepage = "https://claude.ai";
     license = licenses.unfree;
+    sourceProvenance = [ sourceTypes.binaryNativeCode ];
     platforms = [ "x86_64-linux" ];
     mainProgram = "claude-desktop";
   };
