@@ -8,7 +8,7 @@ on:
       - scripts/**
       - tests/**
   schedule:
-    - cron: '17 4 * * 1' # Monday, 09:47 IST (GitHub may delay scheduled runs)
+    - cron: '37 */6 * * *' # Every 6 hours (05:07, 11:07, 17:07, 23:07 IST)
   workflow_dispatch:
 
 concurrency:
