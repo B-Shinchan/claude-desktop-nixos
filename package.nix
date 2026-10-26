@@ -137,7 +137,7 @@ stdenv.mkDerivation (finalAttrs: {
   preFixup = ''
     gappsWrapperArgs+=(
       --prefix PATH : ${lib.makeBinPath [ xdg-utils ]}
-      --add-flags "--ozone-platform=auto --password-store=gnome-libsecret"
+      --add-flags "--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations,WebRTCPipeWireCapturer --password-store=gnome-libsecret"
     )
   '';
 
