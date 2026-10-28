@@ -104,6 +104,10 @@ stdenv.mkDerivation (finalAttrs: {
     pipewire
   ];
 
+  appendRunpaths = [
+    "${addDriverRunpath.driverLink}/lib"
+  ];
+
   dontWrapGApps = true;
 
   installPhase = ''
