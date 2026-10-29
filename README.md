@@ -1,7 +1,18 @@
-# Claude Desktop for NixOS
+<div align="center">
+  <img src="./assets/claude-logo.png" alt="Claude Desktop Logo" width="128" height="128" />
+  <h1>Claude Desktop on NixOS</h1>
+  <p>Official Anthropic Claude Desktop Linux application packaged natively for NixOS</p>
 
-[![Build](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml/badge.svg)](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml)
-[![Upstream updates](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml/badge.svg)](https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml)
+  <p>
+    <a href="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml"><img src="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
+    <a href="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml"><img src="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml/badge.svg" alt="Upstream updates" /></a>
+    <a href="https://nixos.org"><img src="https://img.shields.io/badge/Nix_Flake-blue?logo=nixos&logoColor=white" alt="Nix Flake" /></a>
+    <a href="https://wayland.freedesktop.org/"><img src="https://img.shields.io/badge/Wayland-Ready-green?logo=wayland&logoColor=white" alt="Wayland Ready" /></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/Packaging_License-MIT-yellow.svg" alt="License" /></a>
+  </p>
+</div>
+
+---
 
 Community packaging of **Anthropic's official Linux application** for NixOS. The application comes from the vendor's Debian repository; this project adapts its runtime and desktop integration for NixOS. It is not an official Anthropic or NixOS project.
 
