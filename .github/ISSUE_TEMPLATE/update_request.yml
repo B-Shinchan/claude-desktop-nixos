@@ -1,0 +1,27 @@
+name: Upstream Update Request
+description: Report that a new official upstream Debian release of Claude Desktop is available
+labels: ["upstream-update"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Anthropic's official APT feed is checked automatically every Monday via GitHub Actions. If a release has been available in the repository for more than 7 days, please report it here.
+  - type: input
+    id: upstream_version
+    attributes:
+      label: New Upstream Version
+      placeholder: "e.g., 4.30.0"
+    validations:
+      required: true
+  - type: input
+    id: source_url
+    attributes:
+      label: Official Source Link
+      placeholder: "https://support.claude.com/en/articles/10065433-install-claude-desktop"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Release Notes & Breaking Changes
+      description: Any notable changes in binary layout or Cowork virtualization requirements?
