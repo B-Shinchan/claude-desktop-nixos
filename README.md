@@ -6,6 +6,7 @@
   <p>
     <a href="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml"><img src="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
     <a href="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml"><img src="https://github.com/B-Shinchan/claude-desktop-nixos/actions/workflows/update.yml/badge.svg" alt="Upstream updates" /></a>
+    <a href="https://github.com/B-Shinchan/claude-desktop-nixos/releases"><img src="https://img.shields.io/github/v/release/B-Shinchan/claude-desktop-nixos?logo=github&label=Release" alt="Latest Release" /></a>
     <a href="https://nixos.org"><img src="https://img.shields.io/badge/Nix_Flake-blue?logo=nixos&logoColor=white" alt="Nix Flake" /></a>
     <a href="https://wayland.freedesktop.org/"><img src="https://img.shields.io/badge/Wayland-Ready-green?logo=wayland&logoColor=white" alt="Wayland Ready" /></a>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/Packaging_License-MIT-yellow.svg" alt="License" /></a>
@@ -146,6 +147,30 @@ nix flake update claude-desktop
 sudo nixos-rebuild switch --flake .#YOUR_HOST
 ```
 
+## Version management & pinning
+
+This repository publishes structured [GitHub Releases](https://github.com/B-Shinchan/claude-desktop-nixos/releases) tracking each upstream Anthropic release.
+
+### Understanding versions
+
+1. **Upstream Application Version**: The official version released by Anthropic (e.g., `4.4212.0`).
+2. **Nix Package Version**: Declared in `package.nix` (`version = "4.4212.0"`) and exposed via Flake outputs (`packages.x86_64-linux.default.version`).
+3. **GitHub Packaging Release**: Git tags formatted as `v<UPSTREAM_VERSION>` (e.g., `v4.4212.0`). Packaging-only fixes use `v<UPSTREAM_VERSION>-<REVISION>` (e.g., `v4.4212.0-1`).
+
+### Pinning a specific release
+
+By default, referencing `github:B-Shinchan/claude-desktop-nixos` tracks the latest release on `main`. To pin an exact validated version in your `flake.nix`:
+
+```nix
+inputs.claude-desktop.url = "github:B-Shinchan/claude-desktop-nixos/v4.4212.0";
+```
+
+To update pinned inputs:
+
+```bash
+nix flake update claude-desktop
+```
+
 ## Development and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, contributions, and the remaining work before a potential Nixpkgs submission. See [SECURITY.md](SECURITY.md) for trust boundaries, maintenance limits, and branch-protection guidance.
@@ -160,7 +185,7 @@ This package is part of a suite of official vendor AI applications packaged for 
 | :--- | :--- | :--- |
 | **Claude Desktop** | `claude-desktop` | [claude-desktop-nixos](https://github.com/B-Shinchan/claude-desktop-nixos) |
 | **ChatGPT Desktop** | `chatgpt` | [chatgpt-desktop-nixos](https://github.com/B-Shinchan/chatgpt-desktop-nixos) |
-| **Google Antigravity IDE** | `antigravity-ide` | [antigravity-nixos](https://github.com/B-Shinchan/antigravity-nixos) |
+| **Google Antigravity IDE** | `antigravity-ide` | [antigravity-ide-nixos](https://github.com/B-Shinchan/antigravity-ide-nixos) |
 | **Google Antigravity Hub** | `antigravity-hub` | [antigravity-hub-nixos](https://github.com/B-Shinchan/antigravity-hub-nixos) |
 
 ## License and attribution
