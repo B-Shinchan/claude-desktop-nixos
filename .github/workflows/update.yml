@@ -168,7 +168,7 @@ jobs:
 
       - name: Create GitHub Release
         if: env.VERSION_UPDATED == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ steps.apply.outputs.version }}"
           name: "${{ steps.notes.outputs.title }}"
